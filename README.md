@@ -1,0 +1,1 @@
+# termometro-rak12002
