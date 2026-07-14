@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Termómetro RAK12002 · Live</title>
+<style>
+  :root{
+    --bg:#0f1620;
+    --panel:#161f2b;
+    --panel-2:#1c2734;
+    --line:#26333f;
+    --text:#e8eef4;
+    --muted:#7c8a99;
+    --cyan:#5eead4;
+    --amber:#f5a623;
+    --red:#f0654a;
+    --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(94,234,212,.06), transparent),
+      radial-gradient(ellipse 700px 500px at 100% 0%, rgba(245,166,35,.05), transparent),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    min-height:100vh;
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:28px;flex-wrap:wrap;}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--cyan);text-transform:uppercase;margin:0 0 6px;}
+  h1{font-size:clamp(22px,4vw,30px);margin:0;font-weight:600;letter-spacing:-.01em;}
+  .device{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:6px;}
+  .status{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--muted);padding:8px 12px;border:1px solid var(--line);border-radius:20px;background:var(--panel);white-space:nowrap;}
+  .pulse{width:8px;height:8px;border-radius:50%;background:var(--cyan);position:relative;flex:none;}
+  .pulse::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--cyan);animation:ping 2.2s cubic-bezier(.4,0,.3,1) infinite;}
+  .pulse.off{background:var(--red);}
+  .pulse.off::after{border-color:var(--red);}
+  @keyframes ping{0%{transform:scale(.6);opacity:.9}100%{transform:scale(2.4);opacity:0}}
+
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+  @media(max-width:520px){.stats{grid-template-columns:1fr;}}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 24px;position:relative;overflow:hidden;}
+  .stat::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;}
+  .stat.c::before{background:linear-gradient(90deg,var(--cyan),transparent);}
+  .stat.f::before{background:linear-gradient(90deg,var(--amber),transparent);}
+  .stat-label{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin:0 0 10px;}
+  .stat-value{font-family:var(--mono);font-size:clamp(38px,7vw,52px);font-weight:600;line-height:1;letter-spacing:-.02em;}
+  .stat.c .stat-value{color:var(--cyan);}
+  .stat.f .stat-value{color:var(--amber);}
+  .stat-unit{font-size:20px;color:var(--muted);font-weight:400;margin-left:4px;}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px 12px;margin-bottom:14px;}
+  .panel-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+  .panel-title{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;}
+  .panel-sub{font-family:var(--mono);font-size:11px;color:var(--muted);}
+  svg{width:100%;height:180px;display:block;}
+  .trace{fill:none;stroke:var(--cyan);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;}
+  .fillarea{fill:url(#g1);opacity:.5;}
+  .gridline{stroke:var(--line);stroke-width:1;}
+  .axislabel{font-family:var(--mono);font-size:10px;fill:var(--muted);}
+  .dot{fill:var(--bg);stroke:var(--cyan);stroke-width:2;}
+
+  .footbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:4px;}
+  button{
+    font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;
+    background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:8px;
+    padding:8px 14px;cursor:pointer;transition:border-color .15s;
+  }
+  button:hover{border-color:var(--cyan);}
+  button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
+
+  .note{margin-top:22px;padding:14px 16px;border:1px dashed var(--line);border-radius:10px;font-size:12px;color:var(--muted);line-height:1.5;}
+  .note b{color:var(--text);}
+  .empty{color:var(--muted);font-size:13px;padding:30px 0;text-align:center;font-family:var(--mono);}
+  .err{color:var(--red);font-family:var(--mono);font-size:12px;margin-top:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <p class="eyebrow">DSIoT · Estação LoRaWAN</p>
+      <h1>Termómetro RAK12002</h1>
+      <p class="device">app: termometro &nbsp;·&nbsp; device: eui-ac1f09fffe1832b5</p>
+    </div>
+    <div class="status">
+      <span class="pulse" id="pulseDot"></span>
+      <span id="statusText">a ligar…</span>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat c">
+      <p class="stat-label">Temperatura</p>
+      <div class="stat-value" id="valC">--<span class="stat-unit">°C</span></div>
+    </div>
+    <div class="stat f">
+      <p class="stat-label">Temperatura</p>
+      <div class="stat-value" id="valF">--<span class="stat-unit">°F</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <span class="panel-title">Histórico · últimas 24h</span>
+      <span class="panel-sub" id="chartMeta"></span>
+    </div>
+    <div id="chartHost"><p class="empty">a carregar leituras…</p></div>
+  </div>
+
+  <div class="footbar">
+    <span id="lastFetch">—</span>
+    <button id="refreshBtn">Atualizar agora</button>
+  </div>
+  <div class="err" id="errBox"></div>
+
+  <p class="note">
+    <b>Nota de segurança:</b> esta página faz pedidos diretamente à API da TTN a partir do browser,
+    usando uma API Key com direito apenas de leitura. Isso significa que a chave fica visível a quem
+    vir o código-fonte da página. É seguro para uso pessoal ou numa rede fechada, mas se hospedares
+    isto publicamente, considera colocar a chave num pequeno servidor intermédio em vez de a deixar no cliente.
+  </p>
+</div>
+
+<script>
+const REGION   = "eu1";
+const APP_ID   = "termometro";
+const API_KEY  = "NNSXS.P32YSATNKHROSTH5VHKFOZBSR37LMQATTXWOYSA.QNNWPLYOZEJ5WFZCSML5NRG646JMDHJXT6MY2FDSX4LUEIKR52FA";
+const STORAGE_URL = `https://${REGION}.cloud.thethings.network/api/v3/as/applications/${APP_ID}/packages/storage/uplink_message?last=24h&order=-received_at&limit=200`;
+const REFRESH_MS = 30000;
+
+const pulseDot = document.getElementById('pulseDot');
+const statusText = document.getElementById('statusText');
+const valC = document.getElementById('valC');
+const valF = document.getElementById('valF');
+const chartHost = document.getElementById('chartHost');
+const chartMeta = document.getElementById('chartMeta');
+const lastFetch = document.getElementById('lastFetch');
+const errBox = document.getElementById('errBox');
+const refreshBtn = document.getElementById('refreshBtn');
+
+function fmtTime(d){
+  return d.toLocaleString('pt-PT', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+async function fetchReadings(){
+  const res = await fetch(STORAGE_URL, {
+    headers:{ "Authorization": "Bearer " + API_KEY, "Accept": "application/json" }
+  });
+  if(!res.ok) throw new Error("HTTP " + res.status);
+  const text = await res.text();
+  const rows = text.split("\n").map(l => l.trim()).filter(Boolean).map(l => {
+    try { return JSON.parse(l); } catch(e){ return null; }
+  }).filter(Boolean);
+
+  return rows.map(r => {
+    const m = r.result || r;
+    const p = (m.uplink_message && m.uplink_message.decoded_payload) || {};
+    return {
+      t: new Date(m.received_at),
+      c: typeof p.Temp_Cels === 'number' ? p.Temp_Cels : null,
+      f: typeof p.Temp_Fahr === 'number' ? p.Temp_Fahr : null
+    };
+  }).filter(r => r.c !== null).sort((a,b) => a.t - b.t);
+}
+
+function drawChart(points){
+  if(points.length < 2){
+    chartHost.innerHTML = '<p class="empty">ainda não há leituras suficientes para desenhar o gráfico</p>';
+    return;
+  }
+  const w = 860, h = 180, padL = 34, padR = 10, padT = 14, padB = 22;
+  const vals = points.map(p => p.c);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const lo = Math.floor(min - 0.5), hi = Math.ceil(max + 0.5);
+  const range = (hi - lo) || 1;
+
+  const x = i => padL + (i/(points.length-1)) * (w - padL - padR);
+  const y = v => padT + (1 - (v - lo)/range) * (h - padT - padB);
+
+  let path = "M" + points.map((p,i) => `${x(i).toFixed(1)},${y(p.c).toFixed(1)}`).join(" L");
+  let area = path + ` L${x(points.length-1).toFixed(1)},${(h-padB).toFixed(1)} L${x(0).toFixed(1)},${(h-padB).toFixed(1)} Z`;
+
+  const gridLines = [lo, (lo+hi)/2, hi].map(v => `
+    <line class="gridline" x1="${padL}" x2="${w-padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/>
+    <text class="axislabel" x="4" y="${(y(v)+3).toFixed(1)}">${v.toFixed(0)}°</text>
+  `).join("");
+
+  const last = points[points.length-1];
+  const first = points[0];
+
+  chartHost.innerHTML = `
+  <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#5eead4" stop-opacity="0.5"/>
+        <stop offset="100%" stop-color="#5eead4" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${gridLines}
+    <path class="fillarea" d="${area}"/>
+    <path class="trace" d="${path}"/>
+    <circle class="dot" cx="${x(points.length-1).toFixed(1)}" cy="${y(last.c).toFixed(1)}" r="4"/>
+    <text class="axislabel" x="${padL}" y="${h-6}">${fmtTime(first.t)}</text>
+    <text class="axislabel" x="${w-padR}" y="${h-6}" text-anchor="end">${fmtTime(last.t)}</text>
+  </svg>`;
+}
+
+async function refresh(){
+  statusText.textContent = "a atualizar…";
+  errBox.textContent = "";
+  try{
+    const points = await fetchReadings();
+    if(points.length === 0){
+      valC.innerHTML = '--<span class="stat-unit">°C</span>';
+      valF.innerHTML = '--<span class="stat-unit">°F</span>';
+      chartHost.innerHTML = '<p class="empty">nenhuma leitura nas últimas 24h</p>';
+      pulseDot.classList.add('off');
+      statusText.textContent = "sem dados recentes";
+    } else {
+      const last = points[points.length-1];
+      valC.innerHTML = last.c.toFixed(2) + '<span class="stat-unit">°C</span>';
+      valF.innerHTML = (last.f !== null ? last.f.toFixed(2) : '--') + '<span class="stat-unit">°F</span>';
+      drawChart(points);
+      chartMeta.textContent = points.length + " leituras";
+      pulseDot.classList.remove('off');
+      statusText.textContent = "última leitura: " + fmtTime(last.t);
+    }
+    lastFetch.textContent = "Página atualizada às " + fmtTime(new Date());
+  } catch(e){
+    pulseDot.classList.add('off');
+    statusText.textContent = "erro de ligação";
+    errBox.textContent = "Falha ao contactar a TTN: " + e.message;
+  }
+}
+
+refreshBtn.addEventListener('click', refresh);
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>
+
