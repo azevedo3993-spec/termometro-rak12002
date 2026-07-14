@@ -136,6 +136,7 @@ const APP_ID   = "termometro";
 const API_KEY  = "NNSXS.P32YSATNKHROSTH5VHKFOZBSR37LMQATTXWOYSA.QNNWPLYOZEJ5WFZCSML5NRG646JMDHJXT6MY2FDSX4LUEIKR52FA";
 const STORAGE_URL = `https://${REGION}.cloud.thethings.network/api/v3/as/applications/${APP_ID}/packages/storage/uplink_message?last=24h&order=-received_at&limit=200`;
 const REFRESH_MS = 30000;
+const OFFLINE_THRESHOLD_MS = 15 * 60 * 1000; // 15 min sem leituras = placa considerada desligada
 
 const pulseDot = document.getElementById('pulseDot');
 const statusText = document.getElementById('statusText');
@@ -231,8 +232,17 @@ async function refresh(){
       valF.innerHTML = (last.f !== null ? last.f.toFixed(2) : '--') + '<span class="stat-unit">°F</span>';
       drawChart(points);
       chartMeta.textContent = points.length + " leituras";
-      pulseDot.classList.remove('off');
-      statusText.textContent = "última leitura: " + fmtTime(last.t);
+
+      const ageMs = Date.now() - last.t.getTime();
+      if(ageMs > OFFLINE_THRESHOLD_MS){
+        pulseDot.classList.add('off');
+        statusText.textContent = "placa desligada";
+        const mins = Math.round(ageMs / 60000);
+        errBox.textContent = "Sem leituras novas há " + mins + " min (última: " + fmtTime(last.t) + "). A placa parece estar desligada.";
+      } else {
+        pulseDot.classList.remove('off');
+        statusText.textContent = "última leitura: " + fmtTime(last.t);
+      }
     }
     lastFetch.textContent = "Página atualizada às " + fmtTime(new Date());
   } catch(e){
